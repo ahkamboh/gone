@@ -50,6 +50,12 @@ enum Commands {
         /// Drive, partition, or disk image to verify
         target: String,
     },
+    /// Show what kind of storage sits under a path: SSD or HDD, TRIM,
+    /// encryption, filesystem, and what an overwrite achieves on it
+    Inspect {
+        /// Directory on the volume to inspect
+        target: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -73,6 +79,21 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Verify { target } => {
             println!("verify: {target} (engine not wired yet)");
+        }
+        Commands::Inspect { target } => {
+            let profile = gone_core::trimdetect::profile(std::path::Path::new(&target));
+            println!("{profile}");
+            let guidance = gone_core::trimdetect::guidance(&profile);
+            let category = match guidance.overwrite_category {
+                gone_core::trimdetect::NistCategory::Clear => "Clear",
+                gone_core::trimdetect::NistCategory::Purge => "Purge",
+                gone_core::trimdetect::NistCategory::Destroy => "Destroy",
+            };
+            println!("NIST 800-88 category of an overwrite here: {category}");
+            println!("{}", guidance.headline);
+            for note in &guidance.notes {
+                println!("Note: {note}");
+            }
         }
     }
     Ok(())
