@@ -1,0 +1,43 @@
+# cargo-fuzz layout for gone-core. This crate is excluded from the workspace
+# (see the root Cargo.toml `exclude = ["fuzz"]`) and builds standalone.
+#
+# Prerequisites (one time):
+#   cargo install cargo-fuzz
+#   rustup toolchain install nightly
+#
+# Run a target:
+#   cargo +nightly fuzz run carve_parse
+#   cargo +nightly fuzz run scan_classify
+#
+# Fuzzing is a local/nightly activity; these targets do not run in CI.
+
+[package]
+name = "gone-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.gone-core]
+path = "../crates/core"
+
+# Keep this crate standalone even if invoked from inside the workspace tree.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "carve_parse"
+path = "fuzz_targets/carve_parse.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "scan_classify"
+path = "fuzz_targets/scan_classify.rs"
+test = false
+doc = false

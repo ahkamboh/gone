@@ -9,3 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+# Path dep on the engine so `oracle` and `synth-corpus` can drive the real
+# scanner instead of shelling out to a binary. No third-party deps: argument
+# parsing is hand-rolled and external tools are reached via std::process.
+gone-core = { path = "../crates/core" }
