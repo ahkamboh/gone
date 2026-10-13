@@ -46,15 +46,28 @@ enum Commands {
         max_mib: Option<u64>,
     },
     /// Rescan after erasing and produce a signed verification certificate
+    /// (JSON + human-readable TXT + PDF) proving what is still recoverable
     Verify {
         /// Drive, partition, or disk image to verify
         target: String,
+        /// Directory to write certificate files into
+        #[arg(long, default_value = ".")]
+        out: String,
     },
     /// Show what kind of storage sits under a path: SSD or HDD, TRIM,
     /// encryption, filesystem, and what an overwrite achieves on it
     Inspect {
         /// Directory on the volume to inspect
         target: String,
+    },
+    /// Strip hidden metadata (EXIF, XMP, IPTC, C2PA) from a photo or
+    /// document. Always writes a NEW file; the original is never touched
+    Scrub {
+        /// JPEG, PNG, or PDF file to scrub
+        target: String,
+        /// Output path. Default: <name>.scrubbed.<ext> next to the original
+        #[arg(long)]
+        out: Option<String>,
     },
 }
 
@@ -77,8 +90,25 @@ fn main() -> anyhow::Result<()> {
         } => {
             erase(&target, dry_run, yes, max_mib)?;
         }
-        Commands::Verify { target } => {
-            println!("verify: {target} (engine not wired yet)");
+        Commands::Verify { target, out } => {
+            verify(&target, &out)?;
+        }
+        Commands::Scrub { target, out } => {
+            let source = std::path::PathBuf::from(&target);
+            if !source.is_file() {
+                bail!("no such file: {target}");
+            }
+            let report = match &out {
+                Some(path) => gone_core::scrub::scrub_file(&source, std::path::Path::new(path)),
+                None => gone_core::scrub::scrub_in_place_clone(&source),
+            }
+            .map_err(|e| anyhow::anyhow!(e))
+            .with_context(|| format!("cannot scrub {target}"))?;
+            println!("{}", report.summary_line());
+            for item in &report.items_removed {
+                println!("  - {item}");
+            }
+            println!("Clean copy: {}", report.output_path.display());
         }
         Commands::Inspect { target } => {
             let profile = gone_core::trimdetect::profile(std::path::Path::new(&target));
@@ -96,6 +126,33 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+fn verify(target: &str, out: &str) -> anyhow::Result<()> {
+    let path = std::path::PathBuf::from(target);
+    let mut source = gone_core::io::EvidenceSource::open(&path)
+        .with_context(|| format!("cannot open {target}"))?;
+    let verification = gone_core::verify::rescan(&mut source, 1024 * 1024, None)
+        .with_context(|| format!("verify scan failed on {target}"))?;
+    println!("{}", verification.outcome_sentence);
+    println!("Media: {}", verification.media_profile);
+    println!("NIST 800-88 category here: {}", verification.nist_category);
+
+    let keypair = gone_core::verify::SigningKeypair::generate();
+    let certificate = gone_core::verify::Certificate::sign(&verification, &keypair);
+    if !certificate.verify_signature() {
+        bail!("internal error: freshly signed certificate failed verification");
+    }
+    let out_dir = std::path::Path::new(out);
+    let mut files = certificate
+        .write_files(out_dir)
+        .context("cannot write certificate files")?;
+    files.push(certificate.write_pdf(out_dir).context("cannot write PDF")?);
+    for file in &files {
+        println!("wrote {}", file.display());
+    }
+    println!("Signature checks out. Keep the JSON: any later edit to it is detectable.");
     Ok(())
 }
 
