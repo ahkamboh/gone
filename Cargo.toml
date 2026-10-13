@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/cli",
+    "crates/detect",
+    "crates/gui",
+    "xtask",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.86"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/ahkamboh/gone"
+homepage = "https://github.com/ahkamboh/gone"
+keywords = ["forensics", "privacy", "sanitization", "recovery", "dfir"]
+categories = ["command-line-utilities"]
+
+[workspace.dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

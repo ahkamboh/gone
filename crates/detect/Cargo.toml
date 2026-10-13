@@ -1,0 +1,10 @@
+[package]
+name = "gone-detect"
+description = "Rule loading and matching engine for gone (rules as data)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

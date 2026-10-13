@@ -1,0 +1,10 @@
+[package]
+name = "gone-core"
+description = "Core engine for gone: recoverability audit, sanitization, and verification"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]

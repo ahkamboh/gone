@@ -1,0 +1,18 @@
+[package]
+name = "gone-cli"
+description = "gone: see what deleted data can still be recovered, erase it for good, prove it"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "gone"
+path = "src/main.rs"
+
+[dependencies]
+gone-core = { path = "../core" }
+gone-detect = { path = "../detect" }
+anyhow = { workspace = true }
+clap = { workspace = true }
