@@ -1,6 +1,7 @@
 //! gone: see what deleted data can still be recovered, erase it for good,
 //! and prove it. Power-user interface; the GUI is the primary client.
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -43,7 +44,12 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Check { target } => {
-            println!("check: {target} (engine not wired yet)");
+            let path = std::path::PathBuf::from(&target);
+            let mut source = gone_core::io::EvidenceSource::open(&path)
+                .with_context(|| format!("cannot open {target}"))?;
+            let summary = gone_core::scan::scan_source(&mut source, 1024 * 1024)
+                .with_context(|| format!("scan failed on {target}"))?;
+            println!("{summary}");
         }
         Commands::Erase { target, dry_run } => {
             println!("erase: {target} dry_run={dry_run} (engine not wired yet)");
