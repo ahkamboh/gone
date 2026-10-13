@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>gone</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <section id="screen-home">
+      <h1>gone</h1>
+      <p class="lede">Find out whether deleted files on a drive could still be brought back, and erase them for good.</p>
+
+      <label for="home-path">Drive, folder, or disk image to check</label>
+      <input id="home-path" type="text" placeholder="/Volumes/MyDrive" autocomplete="off" spellcheck="false">
+      <p class="hint">Checking is read-only. Nothing on the drive is changed.</p>
+
+      <div class="actions">
+        <button id="btn-check" class="primary" disabled>Check for recoverable files</button>
+        <button id="btn-inspect" disabled>Inspect this drive</button>
+      </div>
+      <p id="home-error" class="error" hidden></p>
+
+      <div id="inspect-card" class="card" hidden>
+        <h2>About this drive</h2>
+        <p class="profile-line"></p>
+        <p class="headline"></p>
+        <ul class="notes"></ul>
+      </div>
+    </section>
+
+    <section id="screen-results" hidden>
+      <div id="verdict-banner" class="banner">
+        <p id="verdict-title" class="verdict-title"></p>
+        <p id="verdict-detail"></p>
+      </div>
+
+      <div id="results-profile-card" class="card">
+        <h2>About this drive</h2>
+        <p class="profile-line"></p>
+        <p class="headline"></p>
+        <ul class="notes"></ul>
+      </div>
+
+      <h2>What the scan saw</h2>
+      <dl id="blocks">
+        <div><dt>Empty space</dt><dd id="blocks-empty"></dd></div>
+        <div><dt>Wiped with a pattern</dt><dd id="blocks-fill"></dd></div>
+        <div><dt>Random or encrypted</dt><dd id="blocks-random"></dd></div>
+        <div><dt>May hold deleted files</dt><dd id="blocks-structured"></dd></div>
+      </dl>
+      <p id="scan-meta" class="hint"></p>
+
+      <div class="actions">
+        <button id="btn-to-erase" class="primary">Erase this data for good</button>
+        <button id="btn-results-back">Start over</button>
+      </div>
+    </section>
+
+    <section id="screen-erase" hidden>
+      <h1>Erase deleted data for good</h1>
+      <p id="plan-summary"></p>
+      <p class="warn">This cannot be undone for deleted data.</p>
+
+      <div class="card">
+        <label for="erase-confirm">Type the path to confirm:</label>
+        <p><code id="erase-target"></code></p>
+        <input id="erase-confirm" type="text" autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="actions" id="erase-actions">
+        <button id="btn-erase" class="primary danger" disabled>Erase now</button>
+        <button id="btn-erase-back">Back</button>
+      </div>
+
+      <div id="erase-running" hidden>
+        <div class="bar"><div id="erase-bar-fill"></div></div>
+        <p id="erase-status"></p>
+        <div class="actions">
+          <button id="btn-erase-cancel">Stop early</button>
+        </div>
+        <p class="hint">Stopping early is safe. What was already overwritten stays overwritten.</p>
+      </div>
+      <p id="erase-error" class="error" hidden></p>
+    </section>
+
+    <section id="screen-done" hidden>
+      <h1 id="done-title">All done</h1>
+      <div class="banner good">
+        <p id="done-summary"></p>
+      </div>
+      <p>There is nothing else to do.</p>
+      <div class="actions">
+        <button id="btn-done-restart" class="primary">Start over</button>
+        <button id="btn-done-verify">Verify and get a certificate</button>
+      </div>
+      <div id="verify-result" hidden>
+        <div class="banner good">
+          <p id="verify-sentence"></p>
+        </div>
+        <p id="verify-signature" class="hint"></p>
+        <ul id="verify-files"></ul>
+      </div>
+      <p id="verify-error" class="error" hidden></p>
+    </section>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>
