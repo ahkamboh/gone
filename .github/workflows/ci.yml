@@ -39,3 +39,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
+
+  # Build the shippable binary the same way the release pipeline does, then
+  # run it against a tiny synthetic disk image. Catches "tests pass but the
+  # release binary is broken" regressions on the two unix targets.
+  release-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p gone-cli
+      - name: Make a tiny synthetic disk image
+        run: |
+          dd if=/dev/zero of=smoke.img bs=1m count=4
+          printf 'GONE-SMOKE-MARKER' | dd of=smoke.img bs=1 seek=1 conv=notrunc
+      - name: Smoke test the release binary
+        run: |
+          ./target/release/gone --help
+          ./target/release/gone check smoke.img

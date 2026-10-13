@@ -1,0 +1,63 @@
+# cargo-dist configuration for the gone workspace.
+#
+# This file replaces the usual [workspace.metadata.dist] table in
+# Cargo.toml; `dist` auto-discovers dist-workspace.toml at the repo root.
+#
+# After editing, validate with:   cargo dist plan
+# (or `dist plan` with the v0.30+ CLI). Run it before pushing a release tag.
+
+# Member specs are paths ("cargo:<dir>"), never package names, and each one
+# loads the whole cargo workspace it belongs to, so "cargo:." pulls in every
+# crate. Restricting the release to the CLI is done by the packages
+# whitelist below, not by members. (Verified against dist 0.30.0: the
+# package-name form "cargo:gone-cli" errors out, and a lone path member
+# still announces gone-gui.)
+[workspace]
+members = ["cargo:."]
+# Only gone-cli ships binaries. This name-matched whitelist overrides
+# distability for every package in the workspace, so gone-gui (which also
+# has a bin target) is excluded without touching crates/gui/Cargo.toml.
+packages = ["gone-cli"]
+
+[dist]
+# The dist version CI installs and the minimum this config is written for.
+cargo-dist-version = "0.30.0"
+# CI backends to generate for.
+ci = ["github"]
+# Rust target triples to build release binaries for.
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+]
+# Installers to generate. shell = curl | sh installer, powershell = irm | iex,
+# homebrew = formula pushed to the tap below.
+installers = ["shell", "powershell", "homebrew"]
+# Homebrew tap the release workflow pushes the formula to.
+# Formula name stays "gone-cli" (dist names it after the package); see
+# docs/release.md for why, and homebrew/gone.rb for the source-build variant.
+tap = "ahkamboh/homebrew-tap"
+# Publish the homebrew formula during releases.
+publish-jobs = ["homebrew"]
+# Do not run release CI on pull requests. Valid values are skip / plan / upload;
+# "skip" disables the pull_request trigger entirely.
+pr-run-mode = "skip"
+# Install into the user's cargo bin dir by default (~/.cargo/bin).
+install-path = "CARGO_HOME"
+# tar.gz for unix so the documented cargo-binstall block can use one
+# pkg-fmt = "tgz" everywhere except the Windows zip override.
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+# No auto-updater sidecar.
+install-updater = false
+# .github/workflows/release.yml carries three intentional hand edits on top
+# of `dist generate` output (v* tag filter, the aes_armv8 step, tap commit
+# identity), so tell dist not to reject it as out of date.
+allow-dirty = ["ci"]
+
+# cargo-binstall support: the [package.metadata.binstall] table has to live
+# in crates/cli/Cargo.toml, which this change intentionally does not touch.
+# docs/release.md carries the ready-to-paste block; once added, cargo-dist's
+# standard asset names (gone-cli-v<version>-<target>.tar.gz / .zip) match
+# binstall's default URL template, so `cargo binstall gone-cli` works.
