@@ -21,6 +21,11 @@ categories = ["command-line-utilities"]
 [workspace.dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+aes = "0.8"
+ctr = "0.9"
+fs2 = "0.4"
+getrandom = "0.2"
+ctrlc = "3"
 
 [profile.release]
 lto = "thin"

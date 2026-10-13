@@ -1,0 +1,15 @@
+# Enable the RustCrypto `aes` crate's ARMv8 hardware backend. The crate
+# gates it behind a custom cfg flag rather than a target feature, and
+# without it AES runs its software fallback at ~0.2 GiB/s instead of
+# multiple GiB/s through the crypto extensions.
+#
+# Safety note: every Apple Silicon Mac (M1 and later) implements the ARMv8
+# crypto extensions, so this is safe for all aarch64-apple-darwin builds.
+# Some aarch64 Linux boards (for example Raspberry Pi 4's Cortex-A72) lack
+# the extensions, so the Linux flag is left commented out on purpose.
+[target.aarch64-apple-darwin]
+rustflags = ["--cfg", "aes_armv8"]
+
+# Uncomment only when targeting hardware known to have ARMv8 crypto:
+# [target.aarch64-unknown-linux-gnu]
+# rustflags = ["--cfg", "aes_armv8"]

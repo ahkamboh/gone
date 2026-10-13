@@ -1,7 +1,12 @@
 //! gone: see what deleted data can still be recovered, erase it for good,
 //! and prove it. Power-user interface; the GUI is the primary client.
 
-use anyhow::Context;
+use std::io::{IsTerminal, Write};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
+
+use anyhow::{Context, bail};
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -24,14 +29,21 @@ enum Commands {
         /// Drive, partition, or disk image to scan
         target: String,
     },
-    /// Erase recoverable deleted data from free space.
-    /// Touches only unallocated space, never live files.
+    /// Overwrite every deleted byte sitting in a volume's free space.
+    /// Live files are never touched: the engine grows one filler file,
+    /// then removes it. Aligned with NIST SP 800-88 Rev. 2.
     Erase {
-        /// Drive or partition to sanitize
+        /// Directory on the volume to sanitize, for example / or /Volumes/USB
         target: String,
-        /// Show exactly what would happen, without writing anything
+        /// Show the plan (free space, reserve, bytes to overwrite) and stop
         #[arg(long)]
         dry_run: bool,
+        /// Skip the interactive type-the-path confirmation
+        #[arg(long)]
+        yes: bool,
+        /// Overwrite at most this many MiB. Testing escape hatch.
+        #[arg(long, hide = true)]
+        max_mib: Option<u64>,
     },
     /// Rescan after erasing and produce a signed verification certificate
     Verify {
@@ -51,12 +63,95 @@ fn main() -> anyhow::Result<()> {
                 .with_context(|| format!("scan failed on {target}"))?;
             println!("{summary}");
         }
-        Commands::Erase { target, dry_run } => {
-            println!("erase: {target} dry_run={dry_run} (engine not wired yet)");
+        Commands::Erase {
+            target,
+            dry_run,
+            yes,
+            max_mib,
+        } => {
+            erase(&target, dry_run, yes, max_mib)?;
         }
         Commands::Verify { target } => {
             println!("verify: {target} (engine not wired yet)");
         }
     }
+    Ok(())
+}
+
+fn erase(target: &str, dry_run: bool, yes: bool, max_mib: Option<u64>) -> anyhow::Result<()> {
+    let path = std::path::PathBuf::from(target);
+    let mut plan = gone_core::sanitize::plan(&path)
+        .with_context(|| format!("cannot plan erase on {target}"))?;
+    if let Some(cap) = max_mib {
+        plan = plan.with_max_bytes(cap * 1024 * 1024);
+    }
+
+    let free_gib = plan.free_bytes as f64 / 2f64.powi(30);
+    let write_gib = plan.bytes_to_write as f64 / 2f64.powi(30);
+    println!("Target volume directory: {}", plan.target_dir.display());
+    println!(
+        "Free space: {free_gib:.1} GiB, reserve kept: {} MiB",
+        plan.reserve_bytes / 1024 / 1024
+    );
+    println!("Will overwrite {write_gib:.1} GiB of free space with random data.");
+    println!(
+        "Live files are never touched. Temporary filler: {}",
+        plan.filler_path.display()
+    );
+
+    if dry_run {
+        println!("Dry run: nothing was written.");
+        return Ok(());
+    }
+
+    if !yes {
+        if !std::io::stdin().is_terminal() {
+            bail!("refusing to erase without confirmation; re-run with --yes or use --dry-run");
+        }
+        print!(
+            "Type the target path to confirm ({}): ",
+            plan.target_dir.display()
+        );
+        std::io::stdout().flush()?;
+        let mut typed = String::new();
+        std::io::stdin().read_line(&mut typed)?;
+        if typed.trim() != plan.target_dir.to_string_lossy().as_ref() {
+            bail!("path did not match; nothing was written");
+        }
+    }
+
+    let cancel = Arc::new(AtomicBool::new(false));
+    let flag = cancel.clone();
+    ctrlc::set_handler(move || {
+        if flag.swap(true, Ordering::SeqCst) {
+            eprintln!("\nForced quit.");
+            std::process::exit(130);
+        }
+        eprintln!("\nStopping after the current chunk... press Ctrl+C again to force quit");
+    })
+    .context("cannot install Ctrl+C handler")?;
+
+    let start = Instant::now();
+    let show_progress = std::io::stdout().is_terminal();
+    let mut last_print = Instant::now() - std::time::Duration::from_secs(1);
+    let report = gone_core::sanitize::run(&plan, &cancel, &mut |p| {
+        if show_progress && last_print.elapsed().as_millis() >= 300 {
+            last_print = Instant::now();
+            let pct = 100.0 * p.bytes_written as f64 / p.bytes_planned.max(1) as f64;
+            print!(
+                "\r{pct:5.1}%  {written:.1} / {planned:.1} GiB  at {rate:.0} MiB/s   ",
+                written = p.bytes_written as f64 / 2f64.powi(30),
+                planned = p.bytes_planned as f64 / 2f64.powi(30),
+                rate = p.throughput_mibs(),
+            );
+            let _ = std::io::stdout().flush();
+        }
+    })
+    .with_context(|| format!("erase failed on {target}"))?;
+
+    println!();
+    println!("{}", report.summary_line());
+    println!("Elapsed: {:.1}s", start.elapsed().as_secs_f64());
+    println!("Next step: run `gone verify {target}` to rescan and get a certificate.");
     Ok(())
 }

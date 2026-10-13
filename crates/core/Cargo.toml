@@ -8,3 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+aes = { workspace = true }
+ctr = { workspace = true }
+fs2 = { workspace = true }
+getrandom = { workspace = true }

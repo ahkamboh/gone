@@ -16,3 +16,4 @@ gone-core = { path = "../core" }
 gone-detect = { path = "../detect" }
 anyhow = { workspace = true }
 clap = { workspace = true }
+ctrlc = { workspace = true }
