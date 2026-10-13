@@ -11,7 +11,7 @@ members = [
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.0-rc.1"
 edition = "2024"
 rust-version = "1.86"
 license = "MIT OR Apache-2.0"
@@ -39,3 +39,7 @@ prose-sanitiser-media = "0.1"
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# cargo-dist always builds with --profile dist.
+[profile.dist]
+inherits = "release"

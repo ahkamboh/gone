@@ -24,6 +24,11 @@ packages = ["gone-cli"]
 cargo-dist-version = "0.30.0"
 # CI backends to generate for.
 ci = ["github"]
+# Build with --package gone-cli instead of --workspace. The packages
+# whitelist above only decides what is packaged; without this, every leg
+# also compiles gone-gui, which needs GTK and WebKit on Linux and an .ico
+# on Windows.
+precise-builds = true
 # Rust target triples to build release binaries for.
 targets = [
     "aarch64-apple-darwin",
@@ -61,3 +66,10 @@ allow-dirty = ["ci"]
 # docs/release.md carries the ready-to-paste block; once added, cargo-dist's
 # standard asset names (gone-cli-v<version>-<target>.tar.gz / .zip) match
 # binstall's default URL template, so `cargo binstall gone-cli` works.
+
+# dist 0.30.0 defaults both Apple targets to the macos-13 image, which
+# GitHub has retired. This table must stay last: it is a sub-table, so any
+# plain [dist] key written after it would land inside it.
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-15"
+x86_64-apple-darwin = "macos-15-intel"

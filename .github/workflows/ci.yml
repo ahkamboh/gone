@@ -25,6 +25,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      # The desktop app is a workspace member, and Tauri links GTK and WebKit.
+      - name: Install Tauri system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
@@ -37,8 +43,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # The desktop app is a workspace member, and Tauri links GTK and WebKit.
+      - name: Install Tauri system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --workspace
+      # The desktop app is left out on Windows: tauri-build needs an
+      # icons/icon.ico there, and no Windows build of the app ships yet.
+      - run: cargo test --workspace ${{ matrix.os == 'windows-latest' && '--exclude gone-gui' || '' }}
 
   # Build the shippable binary the same way the release pipeline does, then
   # run it against a tiny synthetic disk image. Catches "tests pass but the
@@ -56,7 +70,7 @@ jobs:
       - run: cargo build --release -p gone-cli
       - name: Make a tiny synthetic disk image
         run: |
-          dd if=/dev/zero of=smoke.img bs=1m count=4
+          dd if=/dev/zero of=smoke.img bs=1048576 count=4
           printf 'GONE-SMOKE-MARKER' | dd of=smoke.img bs=1 seek=1 conv=notrunc
       - name: Smoke test the release binary
         run: |

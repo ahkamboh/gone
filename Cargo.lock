@@ -2051,7 +2051,7 @@ dependencies = [
 
 [[package]]
 name = "gone-cli"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -2062,7 +2062,7 @@ dependencies = [
 
 [[package]]
 name = "gone-core"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 dependencies = [
  "aes 0.8.4",
  "base64 0.22.1",
@@ -2079,11 +2079,11 @@ dependencies = [
 
 [[package]]
 name = "gone-detect"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 
 [[package]]
 name = "gone-gui"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 dependencies = [
  "gone-core",
  "serde",
@@ -6542,7 +6542,7 @@ checksum = "cd223bc94c615fc02bf2f4bbc22a4a9bfe489c2add3ec10b1038df3aca44cac7"
 
 [[package]]
 name = "xtask"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 dependencies = [
  "gone-core",
 ]

@@ -41,6 +41,8 @@ Tag a prerelease the first time:
 git tag v0.1.0-rc.1 && git push --tags
 ```
 
+The workspace version has to equal the tag, or the plan job stops with nothing to release. Set version under [workspace.package] to 0.1.0-rc.1 and commit before tagging the rc, then set it back to 0.1.0 before tagging the final.
+
 The rc suffix makes dist mark the GitHub Release as a prerelease and skips the Homebrew tap publish, so a broken first run never reaches brew users. To scrap a test release:
 
 ```
