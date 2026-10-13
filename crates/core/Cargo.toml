@@ -17,6 +17,9 @@ ed25519-dalek = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 base64 = { workspace = true }
+
+# The metadata scrubber is built on a crate that only compiles on Unix.
+[target.'cfg(unix)'.dependencies]
 prose-sanitiser-media = { workspace = true }
 
 [dev-dependencies]

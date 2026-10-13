@@ -99,6 +99,8 @@ pub enum Outcome {
     Unchanged,
     /// More recoverable items were found after the erase than before.
     Worse,
+    /// A free-space overwrite was recorded. This is not a byte rescan.
+    Recorded,
 }
 
 impl Outcome {
@@ -109,6 +111,7 @@ impl Outcome {
             Outcome::Improved => "Improved",
             Outcome::Unchanged => "Unchanged",
             Outcome::Worse => "Worse",
+            Outcome::Recorded => "Recorded",
         }
     }
 }
@@ -171,6 +174,44 @@ pub fn rescan(
         outcome,
         outcome_sentence,
     })
+}
+
+/// Certificate payload for a free-space overwrite of a folder.
+///
+/// A folder is not a disk image, so there is nothing to rescan. The
+/// certificate records how many bytes were overwritten and says so.
+pub fn attest_overwrite(target: &Path, bytes_written: u64, canceled: bool) -> Verification {
+    let media = trimdetect::profile(target);
+    let guidance = trimdetect::guidance(&media);
+    let gib = bytes_written as f64 / (1024.0 * 1024.0 * 1024.0);
+    let verb = if canceled {
+        format!("Stopped early after writing {gib:.1} GiB")
+    } else {
+        format!("Wrote {gib:.1} GiB")
+    };
+    Verification {
+        target: target.display().to_string(),
+        timestamp: unix_now(),
+        block_size: 0,
+        before: None,
+        after: ScanStats {
+            bytes_scanned: 0,
+            blocks_empty: 0,
+            blocks_fill: 0,
+            blocks_random: 0,
+            blocks_structured: 0,
+            hits_total: 0,
+            hits_by_category: BTreeMap::new(),
+        },
+        media_profile: media.to_string(),
+        nist_category: nist_category_label(guidance.overwrite_category).to_string(),
+        outcome: Outcome::Recorded,
+        outcome_sentence: format!(
+            "{verb} over free space on {}. Existing files were not touched. \
+             This certificate records that overwrite. It is not a rescan of a disk image.",
+            target.display()
+        ),
+    }
 }
 
 /// An ed25519 keypair for signing certificates, generated from operating
@@ -374,6 +415,22 @@ impl Certificate {
             v.outcome_sentence.clone(),
             String::new(),
         ];
+        if v.outcome == Outcome::Recorded {
+            lines.push(format!("Payload hash (BLAKE3): {}", self.payload_hash));
+            lines.push(format!("Signature (ed25519): {}", self.signature));
+            lines.push(format!("Public key (ed25519): {}", self.public_key));
+            lines.push(String::new());
+            lines.push(
+                "This certificate is self-signed. It proves this file was not modified after"
+                    .to_string(),
+            );
+            lines.push(
+                "creation, not who created it or when. A timestamping and public key registry"
+                    .to_string(),
+            );
+            lines.push("service is planned as a phase-2 item.".to_string());
+            return lines;
+        }
         if let Some(before) = &v.before {
             lines.push("Before scan:".to_string());
             lines.push(format!(
@@ -825,6 +882,19 @@ mod tests {
         let wrapped = wrap_line("aa bb cc dd ee", 5);
         assert_eq!(wrapped, vec!["aa bb", "cc dd", "ee"]);
         assert_eq!(wrap_line("", 5), vec![""]);
+    }
+
+    #[test]
+    fn overwrite_attestation_signs_and_says_it_is_not_a_rescan() {
+        let dir = std::env::temp_dir();
+        let verification = attest_overwrite(&dir, 512 * 1024 * 1024, false);
+        assert_eq!(verification.outcome, Outcome::Recorded);
+        assert!(verification.outcome_sentence.contains("0.5 GiB"));
+        assert!(verification.outcome_sentence.contains("not a rescan"));
+        let certificate = Certificate::sign(&verification, &SigningKeypair::generate());
+        assert!(certificate.verify_signature());
+        assert!(certificate.render_text().contains("Outcome: Recorded"));
+        assert!(!certificate.render_text().contains("After scan:"));
     }
 
     #[test]

@@ -248,6 +248,7 @@ pub fn guidance(profile: &MediaProfile) -> Guidance {
 // ---------------------------------------------------------------------------
 
 /// macOS `diskutil info <volume>` output.
+#[allow(dead_code)]
 #[derive(Default, Debug, PartialEq, Eq)]
 struct DiskutilInfo {
     solid_state: Option<bool>,
@@ -257,6 +258,7 @@ struct DiskutilInfo {
     protocol: Option<String>,
 }
 
+#[allow(dead_code)]
 fn parse_diskutil_info(output: &str) -> DiskutilInfo {
     let mut info = DiskutilInfo::default();
     for line in output.lines() {
@@ -299,6 +301,7 @@ fn parse_df_device(output: &str) -> Option<String> {
 }
 
 /// macOS `fdesetup status` output.
+#[allow(dead_code)]
 fn parse_fdesetup_status(output: &str) -> Option<bool> {
     let lower = output.to_ascii_lowercase();
     if lower.contains("filevault is on") {
@@ -312,6 +315,7 @@ fn parse_fdesetup_status(output: &str) -> Option<bool> {
 
 /// macOS `system_profiler SPNVMeDataType` / `SPSerialATADataType` output.
 /// Returns TRIM support.
+#[allow(dead_code)]
 fn parse_system_profiler_trim(output: &str) -> Option<bool> {
     for line in output.lines() {
         let trimmed = line.trim();

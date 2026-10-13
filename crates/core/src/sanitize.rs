@@ -70,6 +70,44 @@ pub fn plan(target: &Path) -> io::Result<SanitizePlan> {
     plan_with_reserve(target, DEFAULT_RESERVE_MIB)
 }
 
+/// Pick how many MiB to leave free.
+///
+/// Large volumes keep the 1 GiB reserve so a low-space system disk is
+/// refused rather than filled. Small volumes (a USB stick, a mounted
+/// disk image) use 10 percent, because the 1 GiB reserve would refuse
+/// them outright.
+pub fn choose_reserve_mib(total_bytes: u64, free_bytes: u64) -> Option<u64> {
+    let default = DEFAULT_RESERVE_MIB * 1024 * 1024;
+    if free_bytes > default {
+        return Some(DEFAULT_RESERVE_MIB);
+    }
+    if total_bytes > default.saturating_mul(2) {
+        return None;
+    }
+    let reserve = (free_bytes / 10).max(8 * 1024 * 1024);
+    if reserve >= free_bytes {
+        return None;
+    }
+    Some((reserve / (1024 * 1024)).max(1))
+}
+
+/// Like [`plan`], but shrinks the reserve on small volumes so a USB stick
+/// or a mounted disk image can still be overwritten.
+pub fn plan_adaptive(target: &Path) -> io::Result<SanitizePlan> {
+    let total = fs2::total_space(target)?;
+    let free = fs2::free_space(target)?;
+    let reserve_mib = choose_reserve_mib(total, free).ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::StorageFull,
+            format!(
+                "only {free} bytes are free on a large volume; refusing to use the last space. Free at least {} MiB, or erase a smaller drive.",
+                DEFAULT_RESERVE_MIB + 1
+            ),
+        )
+    })?;
+    plan_with_reserve(target, reserve_mib)
+}
+
 /// Build a plan with an explicit reserve in MiB.
 pub fn plan_with_reserve(target: &Path, reserve_mib: u64) -> io::Result<SanitizePlan> {
     let meta = fs::metadata(target)?;
@@ -152,6 +190,11 @@ impl SanitizeReport {
         let gib = self.bytes_written as f64 / (1024.0 * 1024.0 * 1024.0);
         let secs = self.elapsed.as_secs_f64();
         let speed = if secs > 0.0 { gib / secs } else { 0.0 };
+        let amount = if gib < 0.1 {
+            format!("{:.0} MiB", self.bytes_written as f64 / (1024.0 * 1024.0))
+        } else {
+            format!("{gib:.1} GiB")
+        };
         let ending = if self.canceled {
             "Stopped early by user. Partial overwrite completed."
         } else if self.disk_full {
@@ -165,7 +208,7 @@ impl SanitizeReport {
             "WARNING: temporary filler file could not be removed; delete it by hand."
         };
         format!(
-            "Wrote {gib:.1} GiB of random data over free space in {secs:.0}s ({speed:.2} GiB/s). {ending} {cleanup}"
+            "Wrote {amount} of random data over free space in {secs:.0}s ({speed:.2} GiB/s). {ending} {cleanup}"
         )
     }
 }
@@ -259,6 +302,22 @@ pub fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reserve_stays_large_on_a_big_disk() {
+        let gib = 1024 * 1024 * 1024;
+        assert_eq!(choose_reserve_mib(2000 * gib, 500 * gib), Some(1024));
+        assert_eq!(choose_reserve_mib(2000 * gib, 200 * 1024 * 1024), None);
+    }
+
+    #[test]
+    fn reserve_shrinks_on_a_small_volume() {
+        let total = 200 * 1024 * 1024;
+        let free = 180 * 1024 * 1024;
+        let reserve = choose_reserve_mib(total, free).unwrap();
+        assert!(reserve < 1024);
+        assert!(reserve * 1024 * 1024 < free);
+    }
 
     #[test]
     fn plan_on_tempdir_reports_free_space() {

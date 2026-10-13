@@ -62,6 +62,7 @@ enum Commands {
     },
     /// Strip hidden metadata (EXIF, XMP, IPTC, C2PA) from a photo or
     /// document. Always writes a NEW file; the original is never touched
+    #[cfg(unix)]
     Scrub {
         /// JPEG, PNG, or PDF file to scrub
         target: String,
@@ -75,12 +76,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Check { target } => {
-            let path = std::path::PathBuf::from(&target);
-            let mut source = gone_core::io::EvidenceSource::open(&path)
-                .with_context(|| format!("cannot open {target}"))?;
-            let summary = gone_core::scan::scan_source(&mut source, 1024 * 1024)
-                .with_context(|| format!("scan failed on {target}"))?;
-            println!("{summary}");
+            check(&target)?;
         }
         Commands::Erase {
             target,
@@ -93,6 +89,7 @@ fn main() -> anyhow::Result<()> {
         Commands::Verify { target, out } => {
             verify(&target, &out)?;
         }
+        #[cfg(unix)]
         Commands::Scrub { target, out } => {
             let source = std::path::PathBuf::from(&target);
             if !source.is_file() {
@@ -129,10 +126,62 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn verify(target: &str, out: &str) -> anyhow::Result<()> {
-    let path = std::path::PathBuf::from(target);
-    let mut source = gone_core::io::EvidenceSource::open(&path)
+fn check(target: &str) -> anyhow::Result<()> {
+    let mut source = open_target(target)?;
+    let summary = gone_core::scan::scan_source(&mut source, 1024 * 1024)
+        .with_context(|| format!("scan failed on {target}"))?;
+    println!("{summary}");
+    Ok(())
+}
+
+/// Open a disk image, or a device the OS lists, read-only.
+///
+/// A listed device is opened with the size the OS reported. Anything else
+/// is sized by seeking, and a device node can report 0 that way. A source
+/// of 0 bytes is refused: scanning nothing must not read as a clean result.
+fn open_target(target: &str) -> anyhow::Result<gone_core::io::EvidenceSource> {
+    let path = std::path::Path::new(target);
+    if !path.is_file() && looks_like_device(target) {
+        if let Ok(devices) = gone_core::devices::enumerate() {
+            if let Some(device) = devices.iter().find(|device| device_matches(device, target)) {
+                return gone_core::devices::open_for_scan(device).map_err(|err| {
+                    if gone_core::devices::is_permission_error(&err) {
+                        anyhow::anyhow!("{}", gone_core::devices::access_denied_message())
+                    } else {
+                        anyhow::anyhow!("cannot open {}: {err}", device.device_node)
+                    }
+                });
+            }
+        }
+    }
+    let source = gone_core::io::EvidenceSource::open(path)
         .with_context(|| format!("cannot open {target}"))?;
+    if source.size() == 0 {
+        bail!(
+            "{target} reports a size of 0 bytes, so nothing was read and there is no result. \
+             For a disk, pass a whole disk (for example /dev/disk4) or a mounted volume."
+        );
+    }
+    Ok(source)
+}
+
+fn looks_like_device(target: &str) -> bool {
+    target.starts_with("/dev/")
+        || target.starts_with(r"\\.\")
+        || target.starts_with("disk")
+        || target.starts_with("rdisk")
+}
+
+fn device_matches(device: &gone_core::devices::Device, target: &str) -> bool {
+    device.device_node == target
+        || device.raw_node.as_deref() == Some(target)
+        || device.identifier == target
+        || target == format!("/dev/{}", device.identifier)
+        || target == format!("/dev/r{}", device.identifier)
+}
+
+fn verify(target: &str, out: &str) -> anyhow::Result<()> {
+    let mut source = open_target(target)?;
     let verification = gone_core::verify::rescan(&mut source, 1024 * 1024, None)
         .with_context(|| format!("verify scan failed on {target}"))?;
     println!("{}", verification.outcome_sentence);
@@ -158,7 +207,7 @@ fn verify(target: &str, out: &str) -> anyhow::Result<()> {
 
 fn erase(target: &str, dry_run: bool, yes: bool, max_mib: Option<u64>) -> anyhow::Result<()> {
     let path = std::path::PathBuf::from(target);
-    let mut plan = gone_core::sanitize::plan(&path)
+    let mut plan = gone_core::sanitize::plan_adaptive(&path)
         .with_context(|| format!("cannot plan erase on {target}"))?;
     if let Some(cap) = max_mib {
         plan = plan.with_max_bytes(cap * 1024 * 1024);
@@ -230,6 +279,12 @@ fn erase(target: &str, dry_run: bool, yes: bool, max_mib: Option<u64>) -> anyhow
     println!();
     println!("{}", report.summary_line());
     println!("Elapsed: {:.1}s", start.elapsed().as_secs_f64());
-    println!("Next step: run `gone verify {target}` to rescan and get a certificate.");
+    if path.is_file() {
+        println!("Next step: run `gone verify {target}` to rescan and get a certificate.");
+    } else {
+        println!(
+            "Folder erase is recorded above. A byte rescan needs a disk image: gone verify image.img"
+        );
+    }
     Ok(())
 }

@@ -7,102 +7,314 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-drive" viewBox="0 0 24 24">
+      <rect x="3.5" y="5" width="17" height="14" rx="3"/>
+      <path d="M3.5 14.5h17"/>
+      <circle cx="16.5" cy="16.8" r=".9" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-hdd" viewBox="0 0 24 24">
+      <rect x="4" y="3.5" width="16" height="17" rx="3"/>
+      <circle cx="12" cy="10.5" r="4"/>
+      <circle cx="12" cy="10.5" r=".9" fill="currentColor" stroke="none"/>
+      <path d="M8 17.2h3"/>
+    </symbol>
+    <symbol id="i-external" viewBox="0 0 24 24">
+      <rect x="7" y="9" width="10" height="12" rx="2"/>
+      <rect x="9" y="3.5" width="6" height="5.5" rx="1"/>
+      <circle cx="11" cy="6.2" r=".7" fill="currentColor" stroke="none"/>
+      <circle cx="13" cy="6.2" r=".7" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-image" viewBox="0 0 24 24">
+      <path d="M7 3.5h7l4.5 4.5v10.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z"/>
+      <path d="M14 3.5V8h4.5"/>
+      <circle cx="11.8" cy="14" r="2.6"/>
+    </symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24">
+      <path d="M7 3.5h7l4.5 4.5v10.5a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z"/>
+      <path d="M14 3.5V8h4.5"/>
+      <path d="M8.5 13h7M8.5 16.5h4.5"/>
+    </symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24">
+      <path d="M4.5 15.5l8.6-8.6a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L13 19H8z"/>
+      <path d="M9.4 10.6l6 6"/>
+      <path d="M13 19h7"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="M5 12.5l4.5 4.5L19 7.5"/>
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24">
+      <path d="M12 4.2l8.6 14.8a1 1 0 0 1-.9 1.5H4.3a1 1 0 0 1-.9-1.5z"/>
+      <path d="M12 10v4.5"/>
+      <circle cx="12" cy="17.3" r=".9" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24">
+      <path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/>
+      <circle cx="12" cy="12" r="2.7"/>
+    </symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="8.5"/>
+      <path d="M12 7.5V12l3 2"/>
+    </symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24">
+      <rect x="6.5" y="6.5" width="11" height="11" rx="2"/>
+    </symbol>
+    <symbol id="i-seal" viewBox="0 0 24 24">
+      <circle cx="12" cy="9.5" r="5.5"/>
+      <path d="M8.8 14.2L7.5 20.5l4.5-2.3 4.5 2.3-1.3-6.3"/>
+      <path d="M9.8 9.6l1.6 1.6 2.9-3.1"/>
+    </symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path d="M19.5 12a7.5 7.5 0 1 1-2.6-5.7"/>
+      <path d="M17.3 2.8v3.9h-3.9"/>
+    </symbol>
+    <symbol id="i-back" viewBox="0 0 24 24">
+      <path d="M19 12H5M11 6l-6 6 6 6"/>
+    </symbol>
+  </svg>
+
+  <header class="topbar" data-tauri-drag-region>
+    <div class="brand" data-tauri-drag-region>
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+        <path d="M23 9.5a9 9 0 1 0 .1 13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="16" cy="16" r="1.9" fill="currentColor"/>
+      </svg>
+      <span>gone</span>
+    </div>
+    <ol class="trail" id="trail" aria-label="Steps" data-tauri-drag-region>
+      <li data-step="check"><span class="trail-mark">1</span>Check</li>
+      <li data-step="erase"><span class="trail-mark">2</span>Erase</li>
+      <li data-step="verify"><span class="trail-mark">3</span>Verify</li>
+    </ol>
+  </header>
+
   <main>
     <section id="screen-home">
-      <h1>gone</h1>
-      <p class="lede">Find out whether deleted files on a drive could still be brought back, and erase them for good.</p>
+      <h1 class="hero">See what deleted files could still be brought back.</h1>
+      <p class="lede">Pick a disk to scan. A scan only reads. Nothing on the disk is changed.</p>
 
-      <label for="home-path">Drive, folder, or disk image to check</label>
-      <input id="home-path" type="text" placeholder="/Volumes/MyDrive" autocomplete="off" spellcheck="false">
-      <p class="hint">Checking is read-only. Nothing on the drive is changed.</p>
-
-      <div class="actions">
-        <button id="btn-check" class="primary" disabled>Check for recoverable files</button>
-        <button id="btn-inspect" disabled>Inspect this drive</button>
+      <div class="section-head">
+        <h2 id="device-heading">Disks on this Mac</h2>
+        <button id="btn-refresh-devices" class="btn ghost" type="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>
+          Refresh
+        </button>
       </div>
-      <p id="home-error" class="error" hidden></p>
-
-      <div id="inspect-card" class="card" hidden>
-        <h2>About this drive</h2>
-        <p class="profile-line"></p>
-        <p class="headline"></p>
-        <ul class="notes"></ul>
+      <ul id="device-list" class="list"></ul>
+      <div id="device-empty" class="empty" hidden>
+        <p class="empty-title">No disks showed up.</p>
+        <p class="hint">Plug the drive in, then choose Refresh.</p>
       </div>
+      <p id="device-error" class="notice error" role="alert" hidden></p>
+
+      <h2 class="section-title">Other choices</h2>
+      <div class="choices">
+        <button id="btn-check-image" class="choice" type="button">
+          <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-image"/></svg></span>
+          <span>
+            <span class="choice-title">Check a disk image</span>
+            <span class="choice-desc">Scan a file copy of a disk that you already have.</span>
+          </span>
+        </button>
+        <button id="btn-erase-free" class="choice" type="button">
+          <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-eraser"/></svg></span>
+          <span>
+            <span class="choice-title">Erase leftover free space</span>
+            <span class="choice-desc">Pick a folder on the drive. Your files stay in place.</span>
+          </span>
+        </button>
+      </div>
+      <p id="home-error" class="notice error" role="alert" hidden></p>
+    </section>
+
+    <section id="screen-scan" hidden>
+      <button id="btn-scan-back" class="btn ghost back" type="button">
+        <svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>
+        Back
+      </button>
+
+      <div class="subject">
+        <span class="tile big" id="scan-icon"></span>
+        <div>
+          <h1 id="scan-name"></h1>
+          <p id="scan-meta" class="subject-meta"></p>
+        </div>
+      </div>
+
+      <div id="scan-confirm">
+        <ul class="facts">
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg>
+            <span>gone only reads. Nothing on the disk is changed.</span>
+          </li>
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>
+            <span id="scan-warn">A large disk can take a long time.</span>
+          </li>
+          <li>
+            <svg class="icon" aria-hidden="true"><use href="#i-stop"/></svg>
+            <span>You can stop at any time. Stopping is safe.</span>
+          </li>
+        </ul>
+        <div class="actions">
+          <button id="btn-scan-start" class="btn primary" type="button">Start scan</button>
+        </div>
+      </div>
+
+      <div id="scan-running" hidden>
+        <p class="figure"><span id="scan-percent">0</span><small>%</small></p>
+        <div id="scan-grid" class="grid" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+        <p class="hint">Each square is 1% of the disk.</p>
+        <dl class="stats">
+          <div><dt>Read so far</dt><dd id="scan-read"></dd></div>
+          <div><dt>Speed</dt><dd id="scan-speed"></dd></div>
+          <div><dt>Time left</dt><dd id="scan-left"></dd></div>
+        </dl>
+        <div class="actions">
+          <button id="btn-scan-stop" class="btn" type="button">Stop scan</button>
+        </div>
+        <p class="hint">Stopping is safe. Nothing on the disk is changed.</p>
+      </div>
+
+      <div id="scan-reading" hidden>
+        <div id="read-grid" class="grid busy" aria-hidden="true"></div>
+        <p class="reading-line" role="status">Reading the disk image. This only reads the file.</p>
+        <p class="hint">A large file can take a while. Keep this window open.</p>
+      </div>
+
+      <p id="scan-error" class="notice error" role="alert" hidden></p>
     </section>
 
     <section id="screen-results" hidden>
-      <div id="verdict-banner" class="banner">
-        <p id="verdict-title" class="verdict-title"></p>
-        <p id="verdict-detail"></p>
+      <div id="verdict" class="verdict">
+        <span class="verdict-icon" id="verdict-icon"></span>
+        <div>
+          <h1 id="verdict-title"></h1>
+          <p id="verdict-detail" class="verdict-detail"></p>
+          <ul id="verdict-chips" class="chips" hidden></ul>
+        </div>
       </div>
 
-      <div id="results-profile-card" class="card">
+      <div class="panel">
+        <h2>What the scan saw</h2>
+        <div id="result-grid" class="grid" aria-hidden="true"></div>
+        <p class="hint">Each square is about 1% of what was read.</p>
+        <ul class="legend">
+          <li>
+            <span class="swatch c-structured"></span>
+            <span>May hold deleted files</span>
+            <span class="legend-share" id="share-structured"></span>
+            <span class="legend-count" id="blocks-structured"></span>
+          </li>
+          <li>
+            <span class="swatch c-random"></span>
+            <span>Random or encrypted</span>
+            <span class="legend-share" id="share-random"></span>
+            <span class="legend-count" id="blocks-random"></span>
+          </li>
+          <li>
+            <span class="swatch c-fill"></span>
+            <span>Wiped with a pattern</span>
+            <span class="legend-share" id="share-fill"></span>
+            <span class="legend-count" id="blocks-fill"></span>
+          </li>
+          <li>
+            <span class="swatch c-empty"></span>
+            <span>Empty space</span>
+            <span class="legend-share" id="share-empty"></span>
+            <span class="legend-count" id="blocks-empty"></span>
+          </li>
+        </ul>
+        <p id="results-meta" class="hint"></p>
+      </div>
+
+      <div id="results-profile-card" class="panel">
         <h2>About this drive</h2>
         <p class="profile-line"></p>
         <p class="headline"></p>
         <ul class="notes"></ul>
       </div>
 
-      <h2>What the scan saw</h2>
-      <dl id="blocks">
-        <div><dt>Empty space</dt><dd id="blocks-empty"></dd></div>
-        <div><dt>Wiped with a pattern</dt><dd id="blocks-fill"></dd></div>
-        <div><dt>Random or encrypted</dt><dd id="blocks-random"></dd></div>
-        <div><dt>May hold deleted files</dt><dd id="blocks-structured"></dd></div>
-      </dl>
-      <p id="scan-meta" class="hint"></p>
-
+      <p id="results-erase-note" class="hint" hidden></p>
+      <p id="results-error" class="notice error" role="alert" hidden></p>
       <div class="actions">
-        <button id="btn-to-erase" class="primary">Erase this data for good</button>
-        <button id="btn-results-back">Start over</button>
+        <button id="btn-results-erase" class="btn primary" type="button">Erase leftover free space</button>
+        <button id="btn-results-back" class="btn" type="button">Start over</button>
       </div>
     </section>
 
     <section id="screen-erase" hidden>
-      <h1>Erase deleted data for good</h1>
-      <p id="plan-summary"></p>
-      <p class="warn">This cannot be undone for deleted data.</p>
+      <button id="btn-erase-back" class="btn ghost back" type="button">
+        <svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>
+        Back
+      </button>
+      <h1>Erase leftover free space</h1>
+      <p id="plan-summary" class="lede"></p>
 
-      <div class="card">
-        <label for="erase-confirm">Type the path to confirm:</label>
-        <p><code id="erase-target"></code></p>
-        <input id="erase-confirm" type="text" autocomplete="off" spellcheck="false">
-      </div>
+      <div id="erase-setup">
+        <p class="notice warn">
+          <svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg>
+          <span>This cannot be undone for deleted data.</span>
+        </p>
 
-      <div class="actions" id="erase-actions">
-        <button id="btn-erase" class="primary danger" disabled>Erase now</button>
-        <button id="btn-erase-back">Back</button>
+        <div class="panel">
+          <label for="erase-confirm">Type the folder path to confirm</label>
+          <code id="erase-target"></code>
+          <input id="erase-confirm" type="text" placeholder="Type the path shown above" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="erase-match">
+          <p id="erase-match" class="hint match" aria-live="polite"></p>
+        </div>
+
+        <div class="actions">
+          <button id="btn-erase" class="btn danger" type="button" disabled>Erase now</button>
+        </div>
       </div>
 
       <div id="erase-running" hidden>
-        <div class="bar"><div id="erase-bar-fill"></div></div>
-        <p id="erase-status"></p>
+        <p class="figure"><span id="erase-percent">0</span><small>%</small></p>
+        <div id="erase-grid" class="grid" role="progressbar" aria-label="Erase progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+        <p class="hint">Each square is 1% of the free space to overwrite.</p>
+        <dl class="stats">
+          <div><dt>Written so far</dt><dd id="erase-written"></dd></div>
+          <div><dt>Speed</dt><dd id="erase-speed"></dd></div>
+          <div><dt>Time left</dt><dd id="erase-left"></dd></div>
+        </dl>
         <div class="actions">
-          <button id="btn-erase-cancel">Stop early</button>
+          <button id="btn-erase-cancel" class="btn" type="button">Stop early</button>
         </div>
         <p class="hint">Stopping early is safe. What was already overwritten stays overwritten.</p>
       </div>
-      <p id="erase-error" class="error" hidden></p>
+      <p id="erase-error" class="notice error" role="alert" hidden></p>
     </section>
 
     <section id="screen-done" hidden>
-      <h1 id="done-title">All done</h1>
-      <div class="banner good">
-        <p id="done-summary"></p>
-      </div>
-      <p>There is nothing else to do.</p>
-      <div class="actions">
-        <button id="btn-done-restart" class="primary">Start over</button>
-        <button id="btn-done-verify">Verify and get a certificate</button>
-      </div>
-      <div id="verify-result" hidden>
-        <div class="banner good">
-          <p id="verify-sentence"></p>
+      <div id="done-banner" class="verdict good">
+        <span class="verdict-icon" id="done-icon"></span>
+        <div>
+          <h1 id="done-title">All done</h1>
+          <p id="done-summary" class="verdict-detail"></p>
         </div>
-        <p id="verify-signature" class="hint"></p>
-        <ul id="verify-files"></ul>
       </div>
-      <p id="verify-error" class="error" hidden></p>
+
+      <div id="verify-prompt" class="panel prompt">
+        <span class="tile"><svg class="icon" aria-hidden="true"><use href="#i-seal"/></svg></span>
+        <div>
+          <h2>Get a certificate</h2>
+          <p class="hint">gone records what was overwritten in a signed certificate you can keep or share.</p>
+          <button id="btn-done-verify" class="btn primary" type="button">Verify and get a certificate</button>
+        </div>
+      </div>
+
+      <div id="verify-result" class="panel" hidden>
+        <h2>Certificate saved</h2>
+        <p id="verify-sentence"></p>
+        <p id="verify-signature" class="signature"></p>
+        <ul id="verify-files" class="files"></ul>
+      </div>
+      <p id="verify-error" class="notice error" role="alert" hidden></p>
+
+      <div class="actions">
+        <button id="btn-done-restart" class="btn" type="button">Start over</button>
+      </div>
     </section>
   </main>
   <script src="main.js"></script>

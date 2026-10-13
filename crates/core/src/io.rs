@@ -27,10 +27,26 @@ pub struct EvidenceSource {
 
 impl EvidenceSource {
     /// Open a file read-only (raw image today, more formats via adapters).
+    ///
+    /// `File::open` is read-only. This never creates or writes the path.
     pub fn open(path: &Path) -> io::Result<Self> {
         let mut file = File::open(path)?;
         let size = file.seek(SeekFrom::End(0))?;
         file.seek(SeekFrom::Start(0))?;
+        Ok(Self {
+            inner: Box::new(file),
+            size,
+            name: path.display().to_string(),
+        })
+    }
+
+    /// Open a path read-only and use `size` instead of seeking to the end.
+    ///
+    /// Block devices on macOS often report a size of 0 from seek. Callers
+    /// that already know the media size (from `diskutil`, `lsblk`, or
+    /// similar) pass it here. The handle is still `File::open`: read-only.
+    pub fn open_with_size(path: &Path, size: u64) -> io::Result<Self> {
+        let file = File::open(path)?;
         Ok(Self {
             inner: Box::new(file),
             size,

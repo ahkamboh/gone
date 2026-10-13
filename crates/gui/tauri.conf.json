@@ -11,16 +11,21 @@
     "windows": [
       {
         "label": "main",
-        "title": "gone — what can be recovered?",
-        "width": 900,
+        "title": "gone",
+        "width": 800,
         "height": 640,
+        "minWidth": 720,
+        "minHeight": 560,
         "resizable": true,
-        "center": true
+        "center": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 20, "y": 26 }
       }
     ]
   },
   "bundle": {
     "active": true,
-    "icon": []
+    "icon": ["icons/icon.png"]
   }
 }

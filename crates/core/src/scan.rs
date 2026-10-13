@@ -5,6 +5,7 @@
 //! by construction: it never holds a write handle to the source.
 
 use std::io;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::carve;
 use crate::io::EvidenceSource;
@@ -64,15 +65,68 @@ pub fn classify(data: &[u8]) -> BlockClass {
     BlockClass::Structured
 }
 
+/// How far a scan has read. `bytes_total` is the source size the caller
+/// opened, which for a device is the size reported by the OS.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScanProgress {
+    pub bytes_read: u64,
+    pub bytes_total: u64,
+}
+
+/// A finished scan, or the part that was read before cancel.
+#[derive(Debug)]
+pub struct ScanRun {
+    pub summary: ScanSummary,
+    /// True when `cancel` was set between blocks. The summary then covers
+    /// only the bytes already read.
+    pub canceled: bool,
+}
+
 /// Scan an entire evidence source block by block, classifying space and
 /// collecting signature hits. Read-only.
 pub fn scan_source(src: &mut EvidenceSource, block_size: u64) -> io::Result<ScanSummary> {
+    Ok(scan_source_with(src, block_size, None, |_| {})?.summary)
+}
+
+/// Same scan as [`scan_source`], plus progress and cooperative cancel.
+///
+/// `on_progress` runs after each block with bytes read and the total.
+/// When `cancel` is set, the scan stops before the next block and returns
+/// the partial summary with [`ScanRun::canceled`] set. Existing callers
+/// keep using [`scan_source`], which passes no flag and an empty callback.
+pub fn scan_source_with(
+    src: &mut EvidenceSource,
+    block_size: u64,
+    cancel: Option<&AtomicBool>,
+    mut on_progress: impl FnMut(ScanProgress),
+) -> io::Result<ScanRun> {
+    if block_size == 0 || block_size > usize::MAX as u64 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "block size must be at least 1 byte",
+        ));
+    }
+    let total = src.size();
     let mut summary = ScanSummary::new(src.name());
     let mut buf = vec![0u8; block_size as usize];
     for region in src.regions(block_size) {
-        let n = src.read_at(region.offset, &mut buf)?;
-        if n == 0 {
-            break;
+        if cancel.is_some_and(|flag| flag.load(Ordering::Relaxed)) {
+            return Ok(ScanRun {
+                summary,
+                canceled: true,
+            });
+        }
+        // Ask only for this region. A raw device rejects a short read that
+        // is not a multiple of its sector size, and it also rejects a read
+        // that runs past the end. Callers that scan devices pass a size and
+        // a block size that are both multiples of the sector.
+        let want = region.len.min(buf.len() as u64) as usize;
+        let n = read_full_at(src, region.offset, &mut buf[..want])?;
+        if n < want {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "the disk ended before its reported size",
+            ));
         }
         let block = &buf[..n];
         summary.bytes_scanned += n as u64;
@@ -93,8 +147,30 @@ pub fn scan_source(src: &mut EvidenceSource, block_size: u64) -> io::Result<Scan
                 summary.record_hit(hit);
             }
         }
+        on_progress(ScanProgress {
+            bytes_read: summary.bytes_scanned,
+            bytes_total: total,
+        });
     }
-    Ok(summary)
+    Ok(ScanRun {
+        summary,
+        canceled: false,
+    })
+}
+
+/// Read until `buf` is full. A short read that then returns 0 is the caller's
+/// problem to report; this only retries interruptions.
+fn read_full_at(src: &mut EvidenceSource, offset: u64, buf: &mut [u8]) -> io::Result<usize> {
+    let mut filled = 0;
+    while filled < buf.len() {
+        match src.read_at(offset + filled as u64, &mut buf[filled..]) {
+            Ok(0) => break,
+            Ok(n) => filled += n,
+            Err(err) if err.kind() == io::ErrorKind::Interrupted => continue,
+            Err(err) => return Err(err),
+        }
+    }
+    Ok(filled)
 }
 
 #[cfg(test)]
@@ -186,5 +262,52 @@ mod tests {
         let by_category = summary.hits_by_category();
         assert_eq!(by_category.get(&Category::Photos), Some(&1));
         assert_eq!(by_category.get(&Category::Documents), Some(&1));
+    }
+
+    #[test]
+    fn progress_reports_bytes_read_against_total() {
+        let image = vec![0u8; 4096];
+        let mut src = EvidenceSource::from_reader("synthetic", Cursor::new(image)).unwrap();
+        let mut seen = Vec::new();
+        let run = scan_source_with(&mut src, 1024, None, |progress| seen.push(progress)).unwrap();
+        assert!(!run.canceled);
+        assert_eq!(run.summary.bytes_scanned, 4096);
+        assert_eq!(
+            seen,
+            vec![
+                ScanProgress {
+                    bytes_read: 1024,
+                    bytes_total: 4096
+                },
+                ScanProgress {
+                    bytes_read: 2048,
+                    bytes_total: 4096
+                },
+                ScanProgress {
+                    bytes_read: 3072,
+                    bytes_total: 4096
+                },
+                ScanProgress {
+                    bytes_read: 4096,
+                    bytes_total: 4096
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn cancel_stops_between_blocks() {
+        let image = vec![0u8; 4096];
+        let mut src = EvidenceSource::from_reader("synthetic", Cursor::new(image)).unwrap();
+        let cancel = AtomicBool::new(false);
+        let run = scan_source_with(&mut src, 1024, Some(&cancel), |progress| {
+            if progress.bytes_read >= 1024 {
+                cancel.store(true, Ordering::Relaxed);
+            }
+        })
+        .unwrap();
+        assert!(run.canceled);
+        assert_eq!(run.summary.bytes_scanned, 1024);
+        assert_eq!(run.summary.blocks_empty, 1);
     }
 }

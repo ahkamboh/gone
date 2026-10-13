@@ -2,6 +2,7 @@
 //!
 //! Layers, bottom to top:
 //! - [`io`]: evidence sources (raw images, E01, AFF4, sparsebundle, devices)
+//! - [`devices`]: physical disks and mounted volumes, read-only
 //! - [`volume`]: partition tables (GPT, MBR, APM)
 //! - [`fs`]: uniform filesystem access over vetted parser crates
 //! - [`scan`]: free-space mapping, entropy classification, signature scanning
@@ -14,11 +15,13 @@
 #![forbid(unsafe_code)]
 
 pub mod carve;
+pub mod devices;
 pub mod fs;
 pub mod io;
 pub mod report;
 pub mod sanitize;
 pub mod scan;
+#[cfg(unix)]
 pub mod scrub;
 pub mod trimdetect;
 pub mod verify;
